@@ -1,6 +1,34 @@
 import os
 import numpy as np
 import json
+import cv2
+
+from time import sleep
+
+#####################################################################################################################################
+# DEBUGGING PURPOSE
+
+first_frame_debug = {}
+
+cap = cv2.VideoCapture("./p001g15/p001g15c00.mp4")
+ret, frame = cap.read()
+first_frame_debug["0"] = frame
+cap.release()
+
+cap = cv2.VideoCapture("./p001g15/p001g15c01.mp4")
+ret, frame = cap.read()
+first_frame_debug["1"] = frame
+cap.release()
+
+cap = cv2.VideoCapture("./p001g15/p001g15c02.mp4")
+ret, frame = cap.read()
+first_frame_debug["2"] = frame
+cap.release()
+
+cap = cv2.VideoCapture("./p001g15/p001g15c03.mp4")
+ret, frame = cap.read()
+first_frame_debug["3"] = frame
+cap.release()
 
 ######################################################################################################################################
 # GLOBAL VARIABLES
@@ -97,8 +125,3 @@ def main():
 ######################################################################################################################################
 # ENTRYPOINT
 main()
-
-
-
-
-
