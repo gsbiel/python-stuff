@@ -42,6 +42,7 @@ for camera_combination in camera_combinations:
     indexParams = dict(algorithm=FLANN_INDEX_KDTREE,trees=5)
     searchParams = dict(checks=50)
     flann = cv2.FlannBasedMatcher(indexParams,searchParams)
+    matches = flann.knnMatch(descriptorsLeft,descriptorsRight,k=2)
     
     # Apply ratio test
     goodMatches = []
