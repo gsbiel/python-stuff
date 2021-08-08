@@ -1,5 +1,5 @@
 import numpy as np
-import cv2
+import cv2 
 import json
 
 print(cv2.__version__)
@@ -69,6 +69,8 @@ projection_matrix = np.array( [ [ 1, 0, 0, 0],
                                 [ 0, 0, 1, 0]] )
 
 get_system_calibration_data()
+output_file = "fundamental_matrices.npy"
+fundamental_matrices = []
 
 for camera_combination in camera_combinations:
 
@@ -83,16 +85,15 @@ for camera_combination in camera_combinations:
     imgLeft = frames[camLeft]
     imgRight = frames[camRight]
 
-    print("")
-    print(camera_left_matrix)
-    print("")
-    print(camera_right_matrix)
+    F = cv2.sfm.fundamentalFromProjections(camera_left_matrix,camera_right_matrix)
+    fundamental_matrices.append(F)
 
-    F = cv2.fundamentalFromProjections(camera_left_matrix,camera_right_matrix)
-    print(F)
+output_dict = {}
+for f_matrix, combination in zip(fundamental_matrices, camera_combinations):
+    output_dict["{o}-{d}".format(o=combination[0],d=combination[1])] = f_matrix.tolist()
 
-    break
-
+with open("fundamental_matrices.json", 'w') as outfile:
+    json.dump(output_dict,outfile)
 
 
 
