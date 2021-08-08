@@ -88,6 +88,11 @@ for camera_combination in camera_combinations:
     print("")
     print(camera_right_matrix)
 
+    F = cv2.fundamentalFromProjections(camera_left_matrix,camera_right_matrix)
+    print(F)
+
+    break
+
 
 
 
