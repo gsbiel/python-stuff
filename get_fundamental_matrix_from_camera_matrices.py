@@ -16,6 +16,13 @@ def get_system_calibration_data():
             distortions[cameras[i]] = np.array(data["distortion"]["doubles"])
     return
 
+def undistort(image, mtx, dist):
+    # img = cv2.imread(image, cv2.IMREAD_GRAYSCALE)
+    # image = os.path.splitext(image)[0]
+    h, w = img.shape[:2]
+    newcameramtx, _ = cv2.getOptimalNewCameraMatrix(mtx, dist, (w, h), 1, (w, h))
+    dst = cv2.undistort(img, mtx, dist, None, newcameramtx)
+    return dst
 
 frames = {}
 camera_combinations = [("0","1"),("0","2"),("0","3"),("1","2"),("1","3"),("2","3")]
@@ -77,13 +84,17 @@ for camera_combination in camera_combinations:
     camLeft = camera_combination[0]
     camRight = camera_combination[1]
 
-    intrinsic_matrices["cam{}".format(camLeft)]
+    frame_left = frames[camLeft]
+    frame_right = frames[camRight]
 
-    camera_left_matrix = intrinsic_matrices["cam{}".format(camLeft)].dot(projection_matrix.dot(extrinsic_matrices["cam{}".format(camLeft)]))
-    camera_right_matrix = intrinsic_matrices["cam{}".format(camRight)].dot(projection_matrix.dot(extrinsic_matrices["cam{}".format(camRight)]))
+    new_intrinsic_left = undistort(frame_left, intrinsic_matrices["cam{}".format(camLeft)], distortions["cam{}".format(camLeft)])
+    new_intrinsic_right = undistort(frame_right, intrinsic_matrices["cam{}".format(camRight)], distortions["cam{}".format(camRight)])
 
-    imgLeft = frames[camLeft]
-    imgRight = frames[camRight]
+    # camera_left_matrix = intrinsic_matrices["cam{}".format(camLeft)].dot(projection_matrix.dot(extrinsic_matrices["cam{}".format(camLeft)]))
+    # camera_right_matrix = intrinsic_matrices["cam{}".format(camRight)].dot(projection_matrix.dot(extrinsic_matrices["cam{}".format(camRight)]))
+
+    camera_left_matrix = new_intrinsic_left.dot(projection_matrix.dot(extrinsic_matrices["cam{}".format(camLeft)]))
+    camera_right_matrix = new_intrinsic_right.dot(projection_matrix.dot(extrinsic_matrices["cam{}".format(camRight)]))
 
     F = cv2.sfm.fundamentalFromProjections(camera_left_matrix,camera_right_matrix)
     fundamental_matrices.append(F)
