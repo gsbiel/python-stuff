@@ -144,11 +144,20 @@ def drawlines(img1, img2, lines, pts2):
         img2 = cv2.circle(img2, point_tuple, 5, color, -1)
     return img1, img2
 
+def undistort(img, mtx, dist):
+    # img = cv2.imread(image, cv2.IMREAD_GRAYSCALE)
+    # image = os.path.splitext(image)[0]
+    h, w = img.shape[:2]
+    newcameramtx, _ = cv2.getOptimalNewCameraMatrix(mtx, dist, (w, h), 1, (w, h))
+    dst = cv2.undistort(img, mtx, dist, None, newcameramtx)
+    return dst
+
 ######################################################################################################################################
 # MAIN CODE
 
 def main():
     path = "./detections"
+    # fundamental_matrices = read_json("fundamental_matrices.json")
     fundamental_matrices = read_json("fundamental_matrices.json")
     list_subfolders_with_paths = [f.path for f in os.scandir(path) if f.is_dir()]
     for subfolder in list_subfolders_with_paths:
@@ -182,6 +191,14 @@ def main():
                     left_points.append([keypoint["position"]["x"],keypoint["position"]["y"]])
                 
                 left_points = np.array(left_points).reshape(-1,1,2)
+                left_points_undistorted = cv2.undistortPoints(
+                                                    left_points,
+                                                    intrinsic_matrices["cam0"], 
+                                                    distortions["cam0"], 
+                                                    None,
+                                                    intrinsic_matrices["cam0"]
+                                                  )
+                #left_point = left_points_undistorted
                 linesRight = cv2.computeCorrespondEpilines(left_points, 1, F)
 
                 imagem_a, imagem_b = drawlines(first_frame_debug["1"], first_frame_debug["0"], linesRight, left_points)
