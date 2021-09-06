@@ -1,3 +1,4 @@
+from __future__ import print_function
 import os
 import numpy as np
 import json
@@ -187,9 +188,12 @@ def main():
             print(F)
             for skeleton in cam0_annotation["objects"]:
                 left_points = []
-                for keypoint in skeleton["keypoints"]:
-                    left_points.append([keypoint["position"]["x"],keypoint["position"]["y"]])
+                # for keypoint in skeleton["keypoints"]:
+                #     left_points.append([keypoint["position"]["x"],keypoint["position"]["y"]])
                 
+                left_points.append([skeleton["keypoints"][0]["position"]["x"],skeleton["keypoints"][0]["position"]["y"]])
+                print("ID da junta: {}".format(skeleton["keypoints"][0]["id"]))
+
                 left_points = np.array(left_points).reshape(-1,1,2)
                 left_points_undistorted = cv2.undistortPoints(
                                                     left_points,
@@ -201,11 +205,23 @@ def main():
                 #left_point = left_points_undistorted
                 linesRight = cv2.computeCorrespondEpilines(left_points, 1, F)
 
-                imagem_a, imagem_b = drawlines(first_frame_debug["1"], first_frame_debug["0"], linesRight, left_points)
+                print(f"Left point: {left_points}")
+                print(f"Right epiline: {linesRight}")
 
-                Hori = np.concatenate((imagem_b, imagem_a), axis=1)
+                print(first_frame_debug["1"])
+                
+                img_first_frame_debug_1 = undistort(first_frame_debug["1"], intrinsic_matrices["cam1"], distortions["cam1"])
+                img_first_frame_debug_0 = undistort(first_frame_debug["0"], intrinsic_matrices["cam0"], distortions["cam0"])
+
+                imagem_a, imagem_b = drawlines(first_frame_debug["1"], first_frame_debug["0"], linesRight, left_points)
+                #imagem_a, imagem_b = drawlines(img_first_frame_debug_1, img_first_frame_debug_0, linesRight, left_points)
+                    
                 Verti = np.concatenate((imagem_b, imagem_a), axis=0)
-                cv2.imshow('HORIZONTAL', Hori)
+                Hori = Verti = np.concatenate((imagem_b, imagem_a), axis=1)
+                
+                Hori = cv2.resize(Hori, (int(Hori.shape[1]), int(Hori.shape[0])))
+                imS = cv2.resize(Hori, (1288, 640))
+                cv2.imshow('HORIZONTAL', imS)
                 # cv2.imshow('HORIZONTAL', Verti)
                 # cv2.imshow("imagem", imagem_a)
                 
