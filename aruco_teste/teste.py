@@ -90,14 +90,10 @@ def drawlines(left_frame, right_frame, lines_right, left_points, right_points):
   for line, left_point, right_point in zip(lines_right, left_points, right_points): 
 
     color = tuple(np.random.randint(0, 255, 3).tolist())
-
+    
     # Reta
     x0, y0 = [0, -line[2]/line[1] ]
     x1, y1 = [c, (-line[0]*c - line[2])/ line[1]]
-
-    # Reta invertida
-    # x0, y0 = [0, line[2]/line[1] ]
-    # x1, y1 = [r, (line[0]*r + line[2])/ line[1]]
 
     left_point_tuple = (int(left_point[0][0]),int(left_point[0][1]))
     right_point_tuple = (int(right_point[0][0]),int(right_point[0][1]))
@@ -126,14 +122,6 @@ def fundamental_matrix(K0, mRT0, K1, mRT1):
   F10 = (inv(K1).transpose()).dot(E10.dot(inv(K0)))
   return F10
 
-# def undistort(img, mtx, dist):
-#   # img = cv2.imread(image, cv2.IMREAD_GRAYSCALE)
-#   # image = os.path.splitext(image)[0]
-#   h, w = img.shape[:2]
-#   newcameramtx, _ = cv2.getOptimalNewCameraMatrix(mtx, dist, (w, h), 1, (w, h))
-#   dst = cv2.undistort(img, mtx, dist, None, newcameramtx)
-#   return dst, newcameramtx
-
 def compute_correspond_epilines(points, F):
   lines = []
   for point in points:
@@ -149,104 +137,82 @@ def shortest_distance(x1, y1, a, b, c):
     d = abs((a * x1 + b * y1 + c)) / (math.sqrt(a * a + b * b))
     return d
 
+def get_camera_params(cam_identifier, distortions, intrinsic_matrices, extrinsic_matrices):
+  dist = distortions["cam{}".format(cam_identifier)]
+  K = intrinsic_matrices["cam{}".format(cam_identifier)]
+  mRT =  extrinsic_matrices["cam{}".format(cam_identifier)] 
+  return dist, K, mRT
+
+def detect_aruco_in_frame(frame):
+  parameters =  aruco.DetectorParameters_create()
+  aruco_dict = aruco.Dictionary_get(aruco.DICT_4X4_50)
+  corners, ids, rejectedImgPoints = aruco.detectMarkers(frame, aruco_dict, parameters=parameters)
+  if len(corners) < 1:
+    return -1
+  return corners[0][0]
+
+def calculate_aruco_midpoint(corners):
+  quinas = corners.flatten().reshape(-1,2).T
+  midpoint = [[np.mean(quinas[0]),np.mean(quinas[1])]]
+  return midpoint
+
 ######################################################################################################################################
 # MAIN CODE
 
 def main():
 
+  # define qual é a câmera da esquerda e qual é a câmera da direita
   left_cam_ref = 0
   right_cam_ref = 1
 
+  # Lê os dados de calibração e armazena eles nas estruturas de dados definidas lá no começo do código
   get_system_calibration_data()
 
-  dist0 = distortions["cam{}".format(left_cam_ref)]
-  K0 = intrinsic_matrices["cam{}".format(left_cam_ref)]
-  mRT0 =  extrinsic_matrices["cam{}".format(left_cam_ref)]
+  # Lê os parâmetros das câmeras da esquerda e da direita
+  [dist0, K0, mRT0] = get_camera_params(left_cam_ref, distortions, intrinsic_matrices, extrinsic_matrices)
+  [dist1, K1, mRT1] = get_camera_params(right_cam_ref, distortions, intrinsic_matrices, extrinsic_matrices)
 
-  dist1 = distortions["cam{}".format(right_cam_ref)]
-  K1 = intrinsic_matrices["cam{}".format(right_cam_ref)]
-  mRT1 = extrinsic_matrices["cam{}".format(right_cam_ref)]
-
+  # Lê o frame da câmera da esquerda e da direita (o primeiro frame de cada uma)
   frame_left = first_frame_debug["{}".format(left_cam_ref)]
   frame_right = first_frame_debug["{}".format(right_cam_ref)]
 
-  # Testei remover a distorção dos frames e remover a distorção das matrizes K
-  # left_frame_undistorted, K0_undistorted = undistort(frame_left, intrinsic_matrices["cam{}".format(left_cam_ref)], distortions["cam{}".format(left_cam_ref)])
-  # right_frame_undistorted, K1_undistorted = undistort(frame_right, intrinsic_matrices["cam{}".format(right_cam_ref)], distortions["cam{}".format(right_cam_ref)])
-  
-  # Sem remover distorção
-  left_frame_undistorted = frame_left
-  right_frame_undistorted = frame_right
-
-  #F = fundamental_matrix(K0_undistorted, mRT0, K1_undistorted, mRT1)
+  # Calcula a matriz fundamental
   F = fundamental_matrix(K0, mRT0, K1, mRT1)
 
   print("Fundamental Matrix")
   print(f"F = {F}")
   print("")
 
-  # Instância objetos usados pelo detector do Aruco
-  parameters =  aruco.DetectorParameters_create()
-  aruco_dict = aruco.Dictionary_get(aruco.DICT_4X4_50)
+  # Detecta o aruco nos frames da esquerda e da direita
+  aruco_corners_in_left_frame = detect_aruco_in_frame(frame_left)
+  aruco_corners_in_right_frame = detect_aruco_in_frame(frame_right)
 
-  detected_points = []
+  # Calcula o ponto medio do aruco nos frames da esquerda e da direita
+  # Também reformata o array para ficar de acordo com o que a função cv2.computeCorrespondEpilines espera
+  aruco_midpoint_in_left_frame = calculate_aruco_midpoint(aruco_corners_in_left_frame)
+  aruco_midpoint_in_left_frame = np.array(aruco_midpoint_in_left_frame).reshape(-1,1,2)
 
-  corners, ids, rejectedImgPoints = aruco.detectMarkers(left_frame_undistorted, aruco_dict, parameters=parameters)
-  if len(corners) < 1:
-    detected_points.append(-1)
-  detected_points.append(corners[0][0])
+  aruco_midpoint_in_right_frame = calculate_aruco_midpoint(aruco_corners_in_right_frame)
+  aruco_midpoint_in_right_frame = np.array(aruco_midpoint_in_right_frame).reshape(-1,1,2)
 
-  corners, ids, rejectedImgPoints = aruco.detectMarkers(right_frame_undistorted, aruco_dict, parameters=parameters)
-  if len(corners) < 1:
-    detected_points.append(-1)
-  detected_points.append(corners[0][0])
+  print(f"Aruco - Left point: {aruco_midpoint_in_left_frame}")
+  print(f"Aruco - Right epiline: {aruco_midpoint_in_right_frame}")
 
-  index = 0
-  ponto_medio_em_cada_frame=[]
-
-  for quinas in detected_points:
-
-    print(f"cam{index} -------------------------------------------------------------")
-
-    print("Quinas detectadas:")
-    print(quinas)
-    print("")
-  
-    quinas = quinas.flatten().reshape(-1,2).T
-
-    ponto_medio = [[np.mean(quinas[0]),np.mean(quinas[1])]]
-    ponto_medio_em_cada_frame.append(ponto_medio)
-    print(f"Ponto medio do aruco: {ponto_medio}")
-
-    index += 1
-    print("")
-
-  left_points = []
-  left_points.append(ponto_medio_em_cada_frame[0])
-  left_points = np.array(left_points).reshape(-1,1,2)
-
-  right_points = []
-  right_points.append(ponto_medio_em_cada_frame[1])
-  right_points = np.array(right_points).reshape(-1,1,2)
-
-  linesRight = cv2.computeCorrespondEpilines(left_points, 1, F)
+  # Transforma o ponto médio do aruco na imagem da esquerda em uma linha epipolar a ser
+  # plotada na imagem da direita
+  linesRight = cv2.computeCorrespondEpilines(aruco_midpoint_in_left_frame, 1, F)
   linesRight = linesRight.reshape(-1,3)
 
-  print(f"Left point: {left_points}")
-  print(f"Right epiline: {linesRight}")
+  # Calcula a distância entre o ponto médio do aruco na imagem da direita e a linha epipolar calculada acima
+  right_point_distance = shortest_distance(aruco_midpoint_in_right_frame[0][0][0], aruco_midpoint_in_right_frame[0][0][1], linesRight[0][0], linesRight[0][1], linesRight[0][2])
+  print(f"Distance between corresponding point and epipolar line: {right_point_distance}")
 
-  right_point_distance = shortest_distance(right_points[0][0][0], right_points[0][0][1], linesRight[0][0], linesRight[0][1], linesRight[0][2])
-  print(f"Distance between point and epipolar line: {right_point_distance}")
+  # Desenha nos frames os pontos do aruco e a linha epipolar
+  imagem_a, imagem_b = drawlines(frame_left, frame_right, linesRight, aruco_midpoint_in_left_frame, aruco_midpoint_in_right_frame)
 
-  # Imagens com distorção
-  # imagem_a, imagem_b = drawlines(first_frame_debug["{}".format(right_cam_ref)], first_frame_debug["{}".format(left_cam_ref)], linesRight, left_points)
-  
-  # Imagens sem distorição
-  imagem_a, imagem_b = drawlines(left_frame_undistorted, right_frame_undistorted, linesRight, left_points, right_points)
-
+  # Exibe a imagem
   Hori = np.concatenate((imagem_b, imagem_a), axis=1)
   imS = cv2.resize(Hori, (1300, 640))
-
   cv2.imshow('HORIZONTAL', imS)
   cv2.waitKey(0)
   cv2.destroyAllWindows()
