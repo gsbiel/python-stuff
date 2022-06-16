@@ -1,0 +1,9 @@
+# Notes
+
+Na função [main](https://github.com/labviros/is-skeletons-grouper/blob/master/src/is/skeletons-grouper/rpc.cpp#L10):
+
+- Esse [Arquivo de configuração](https://github.com/labviros/is-skeletons-grouper/blob/master/src/is/conf/options.proto) é lido.
+- A função [update_extrinsics](https://github.com/labviros/is-skeletons-grouper/blob/master/src/is/skeletons-grouper/rpc.cpp#L28) é chamada. Essa função está implementada [aqui](https://github.com/labviros/is-skeletons-grouper/blob/master/src/is/utils/utils.cpp#L81).
+- Uma instância da classe SkeletonsGrouper é criada. Essa classe está implementada [aqui](https://github.com/labviros/is-skeletons-grouper/blob/master/src/is/utils/skeletons-grouper.cpp#L76). Dentro dessa classe, a a função [compute_fundamentals_matrix](https://github.com/labviros/is-skeletons-grouper/blob/master/src/is/utils/skeletons-grouper.cpp#L139) é chamada. Essa função está implementada [aqui](https://github.com/labviros/is-skeletons-grouper/blob/master/src/is/utils/vision.cpp#L105). Dentro dessa função, a função [get_extrinsic](https://github.com/labviros/is-skeletons-grouper/blob/master/src/is/utils/vision.cpp#L77) é chamada. Não sei exatamente o que ela faz, mas ela retorna a matriz de parâmetros extrínsecos. Ao final, a função compute_fundamentals_matrix retorna a matriz fundamental de cada par de câmera. A matriz fundamental de cada par é calculada pela função [fundamental_matrix](https://github.com/labviros/is-skeletons-grouper/blob/master/src/is/utils/vision.cpp#L96).
+
+As linhas epipolares são calculadas [aqui](https://github.com/labviros/is-skeletons-grouper/blob/master/src/is/utils/skeletons-grouper.cpp#L213). A função que calcula essas linhas está implementada [aqui](https://github.com/labviros/is-skeletons-grouper/blob/master/src/is/utils/vision.cpp#L126)

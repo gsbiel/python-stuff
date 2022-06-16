@@ -145,14 +145,6 @@ def drawlines(img1, img2, lines, pts2):
         img2 = cv2.circle(img2, point_tuple, 5, color, -1)
     return img1, img2
 
-def undistort(img, mtx, dist):
-    # img = cv2.imread(image, cv2.IMREAD_GRAYSCALE)
-    # image = os.path.splitext(image)[0]
-    h, w = img.shape[:2]
-    newcameramtx, _ = cv2.getOptimalNewCameraMatrix(mtx, dist, (w, h), 1, (w, h))
-    dst = cv2.undistort(img, mtx, dist, None, newcameramtx)
-    return dst
-
 ######################################################################################################################################
 # MAIN CODE
 

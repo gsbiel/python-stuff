@@ -13,43 +13,6 @@ def save_image(frame, image_name):
   im.save(image_name)
   return
 
-#####################################################################################################################################
-# READ THE FIRST FRAME OF EACH VIDEO
-
-first_frame_debug = {}
-
-# 0 -> images
-# 1 -> videos
-content_from = 1
-
-if content_from == 0 :
-  img0 = cv2.imread('photos/cam1.png')
-  first_frame_debug["0"] = cv2.cvtColor(img0, cv2.COLOR_BGR2GRAY)
-  img1 = cv2.imread('photos/cam2.png')
-  first_frame_debug["1"] = cv2.cvtColor(img1, cv2.COLOR_BGR2GRAY)
-  img2 = cv2.imread('photos/cam3.png')
-  first_frame_debug["2"] = cv2.cvtColor(img2, cv2.COLOR_BGR2GRAY)
-  img3 = cv2.imread('photos/cam4.png')
-  first_frame_debug["3"] = cv2.cvtColor(img3, cv2.COLOR_BGR2GRAY)
-
-elif content_from == 1:
-  cap = cv2.VideoCapture("photos/cam1.avi")
-  ret, frame = cap.read()
-  first_frame_debug["0"] = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-  cap.release()
-  cap = cv2.VideoCapture("photos/cam2.avi")
-  ret, frame = cap.read()
-  first_frame_debug["1"] = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-  cap.release()
-  cap = cv2.VideoCapture("photos/cam3.avi")
-  ret, frame = cap.read()
-  first_frame_debug["2"] = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-  cap.release()
-  cap = cv2.VideoCapture("photos/cam4.avi")
-  ret, frame = cap.read()
-  first_frame_debug["3"] = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-  cap.release()
-
 ############################################################################################################
 # INITIALIZE VARIABLES
 
@@ -100,10 +63,10 @@ def drawlines(left_frame, right_frame, lines_right, left_points, right_points):
   
   r, c = left_frame.shape
 
-  print("")
-  print("Image shape:")
-  print("width: {}".format(c))
-  print("height: {}".format(r))
+  # print("")
+  # print("Image shape:")
+  # print("width: {}".format(c))
+  # print("height: {}".format(r))
 
   left_frame = cv2.cvtColor(left_frame, cv2.COLOR_GRAY2BGR)
   right_frame = cv2.cvtColor(right_frame, cv2.COLOR_GRAY2BGR)
@@ -195,8 +158,8 @@ def log_camera_params(intrinsics, extrinsics, camera_id):
 def main():
 
   # define qual é a câmera da esquerda e qual é a câmera da direita
-  left_cam_ref = 0
-  right_cam_ref = 1
+  left_cam_ref = 1
+  right_cam_ref = 2
 
   # Lê os dados de calibração e armazena eles nas estruturas de dados definidas lá no começo do código
   get_system_calibration_data()
@@ -205,20 +168,15 @@ def main():
   [dist0, K0, mRT0] = get_camera_params(left_cam_ref, distortions, intrinsic_matrices, extrinsic_matrices)
   [dist1, K1, mRT1] = get_camera_params(right_cam_ref, distortions, intrinsic_matrices, extrinsic_matrices)
 
-  # Se for o vídeo, o tamanho do frame é menor. Então os parâmetros intrínsecos devem ser corrigidos
-  if content_from == 1:
-      esc = (720/1080)
-      K0 = K0*esc
-      K0[2,2] = 1
-      K1 = K1*esc
-      K1[2,2] = 1
   # Log
   log_camera_params(K0, mRT0, left_cam_ref)
   log_camera_params(K1, mRT1, right_cam_ref)
 
-  # Lê o frame da câmera da esquerda e da direita (o primeiro frame de cada uma)
-  frame_left = first_frame_debug["{}".format(left_cam_ref)]
-  frame_right = first_frame_debug["{}".format(right_cam_ref)]
+  esc = (720/1080)
+  K0 = K0*esc
+  K0[2,2] = 1
+  K1 = K1*esc
+  K1[2,2] = 1
 
   # Calcula a matriz fundamental
   F = fundamental_matrix(K0, mRT0, K1, mRT1)
@@ -227,45 +185,75 @@ def main():
   print("Fundamental Matrix")
   print(f"F = {F}")
 
-  # Detecta o aruco nos frames da esquerda e da direita
-  aruco_corners_in_left_frame = detect_aruco_in_frame(frame_left)
-  aruco_corners_in_right_frame = detect_aruco_in_frame(frame_right)
+  first_frame_debug = {}
 
-  # Calcula o ponto medio do aruco nos frames da esquerda e da direita
-  # Também reformata o array para ficar de acordo com o que a função cv2.computeCorrespondEpilines espera
-  aruco_midpoint_in_left_frame = calculate_aruco_midpoint(aruco_corners_in_left_frame)
-  aruco_midpoint_in_left_frame = np.array(aruco_midpoint_in_left_frame).reshape(-1,1,2)
+  cap1 = cv2.VideoCapture(f"photos/cam{left_cam_ref+1}.avi")
+  cap2 = cv2.VideoCapture(f"photos/cam{right_cam_ref+1}.avi")
 
-  aruco_midpoint_in_right_frame = calculate_aruco_midpoint(aruco_corners_in_right_frame)
-  aruco_midpoint_in_right_frame = np.array(aruco_midpoint_in_right_frame).reshape(-1,1,2)
+  out = cv2.VideoWriter('output.avi', cv2.VideoWriter_fourcc(*'DIVX'), 20.0, (1300, 640))
+
+  counter = 1
+
+  while(cap1.isOpened() and cap2.isOpened()):
+
+    print(f"Frame {counter}")
+    counter += 1
+
+    ret1, frame1 = cap1.read()
+    ret2, frame2 = cap2.read()
+
+    if ret1 == True and ret2 == True:
+
+      frame_left = cv2.cvtColor(frame1, cv2.COLOR_BGR2GRAY)
+      frame_right = cv2.cvtColor(frame2, cv2.COLOR_BGR2GRAY)
+
+      # Detecta o aruco nos frames da esquerda e da direita
+      aruco_corners_in_left_frame = detect_aruco_in_frame(frame_left)
+      aruco_corners_in_right_frame = detect_aruco_in_frame(frame_right)
+
+      if not isinstance(aruco_corners_in_left_frame, np.ndarray) or not isinstance(aruco_corners_in_right_frame, np.ndarray):
+        print("Skipping frame beacause no aruco corners were detected.")
+        continue
+
+      # Calcula o ponto medio do aruco nos frames da esquerda e da direita
+      # Também reformata o array para ficar de acordo com o que a função cv2.computeCorrespondEpilines espera
+      aruco_midpoint_in_left_frame = calculate_aruco_midpoint(aruco_corners_in_left_frame)
+      aruco_midpoint_in_left_frame = np.array(aruco_midpoint_in_left_frame).reshape(-1,1,2)
+
+      aruco_midpoint_in_right_frame = calculate_aruco_midpoint(aruco_corners_in_right_frame)
+      aruco_midpoint_in_right_frame = np.array(aruco_midpoint_in_right_frame).reshape(-1,1,2)
   
-  print("")
-  print(f"Aruco -> Left point: {aruco_midpoint_in_left_frame}")
-  print(f"Aruco -> Right epiline: {aruco_midpoint_in_right_frame}")
+      # print("")
+      # print(f"Aruco -> Left point: {aruco_midpoint_in_left_frame}")
+      # print(f"Aruco -> Right epiline: {aruco_midpoint_in_right_frame}")
 
-  # Transforma o ponto médio do aruco na imagem da esquerda em uma linha epipolar a ser
-  # plotada na imagem da direita
-  linesRight = cv2.computeCorrespondEpilines(aruco_midpoint_in_left_frame, 1, F)
-  linesRight = linesRight.reshape(-1,3)
+      # Transforma o ponto médio do aruco na imagem da esquerda em uma linha epipolar a ser
+      # plotada na imagem da direita
+      linesRight = cv2.computeCorrespondEpilines(aruco_midpoint_in_left_frame, 1, F)
+      linesRight = linesRight.reshape(-1,3)
   
-  print("")
-  print("Right Frame Epipolar Line")
-  print(linesRight)
+      # print("")
+      # print("Right Frame Epipolar Line")
+      # print(linesRight)
 
-  # Calcula a distância entre o ponto médio do aruco na imagem da direita e a linha epipolar calculada acima
-  right_point_distance = shortest_distance(aruco_midpoint_in_right_frame[0][0][0], aruco_midpoint_in_right_frame[0][0][1], linesRight[0][0], linesRight[0][1], linesRight[0][2])
-  print(f"Distance between corresponding point and epipolar line: {right_point_distance}")
+      # Calcula a distância entre o ponto médio do aruco na imagem da direita e a linha epipolar calculada acima
+      right_point_distance = shortest_distance(aruco_midpoint_in_right_frame[0][0][0], aruco_midpoint_in_right_frame[0][0][1], linesRight[0][0], linesRight[0][1], linesRight[0][2])
+      print(f"Distance between corresponding point and epipolar line: {right_point_distance}")
 
-  # Desenha nos frames os pontos do aruco e a linha epipolar
-  imagem_a, imagem_b = drawlines(frame_left, frame_right, linesRight, aruco_midpoint_in_left_frame, aruco_midpoint_in_right_frame)
+      # Desenha nos frames os pontos do aruco e a linha epipolar
+      imagem_a, imagem_b = drawlines(frame_left, frame_right, linesRight, aruco_midpoint_in_left_frame, aruco_midpoint_in_right_frame)
   
-  # Exibe a imagem
-  Hori = np.concatenate((imagem_b, imagem_a), axis=1)
-  imS = cv2.resize(Hori, (1300, 640))
-  cv2.imshow('HORIZONTAL', imS)
-  # cv2.imshow('HORIZONTAL', imagem_a)
-  # cv2.imshow('HORIZONTAL', imagem_b)
-  cv2.waitKey(0)
+      # Exibe a imagem
+      Hori = np.concatenate((imagem_b, imagem_a), axis=1)
+      imS = cv2.resize(Hori, (1300, 640))
+      out.write(imS)
+
+    else:
+      break
+
+  cap1.release()
+  cap2.release()
+  out.release()
   cv2.destroyAllWindows()
 
 ######################################################################################################################################

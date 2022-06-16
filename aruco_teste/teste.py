@@ -92,13 +92,14 @@ def drawlines(left_frame, right_frame, lines_right, left_points, right_points):
     color = tuple(np.random.randint(0, 255, 3).tolist())
     
     # Reta
-    x0, y0 = [0, -line[2]/line[1] ]
-    x1, y1 = [c, (-line[0]*c - line[2])/ line[1]]
+    x0, y0 = map(int, [0, -line[2]/line[1] ])
+    x1, y1 = map(int, [c, (-line[0]*c - line[2])/ line[1]])
 
     left_point_tuple = (int(left_point[0][0]),int(left_point[0][1]))
     right_point_tuple = (int(right_point[0][0]),int(right_point[0][1]))
 
-    right_frame = cv2.line(right_frame, (int(x0), int(y0)), (int(x1), int(y1)), color, 1)
+    right_frame = cv2.line(right_frame, (x0,y0), (x1, y1), color, 1)
+    # right_frame = cv2.line(right_frame, (int(y0), int(x0)), (int(y1), int(x1)), color, 1)
     right_frame = cv2.circle(right_frame, right_point_tuple, 5, color, -1)
 
     left_frame = cv2.circle(left_frame, left_point_tuple, 5, color, -1)
@@ -120,7 +121,7 @@ def fundamental_matrix(K0, mRT0, K1, mRT1):
   skew_mat = skew(T10)
   E10 = skew_mat.dot(R10)
   F10 = (inv(K1).transpose()).dot(E10.dot(inv(K0)))
-  return F10
+  return F10/F10[2,2]
 
 def compute_correspond_epilines(points, F):
   lines = []
@@ -172,12 +173,23 @@ def main():
   [dist0, K0, mRT0] = get_camera_params(left_cam_ref, distortions, intrinsic_matrices, extrinsic_matrices)
   [dist1, K1, mRT1] = get_camera_params(right_cam_ref, distortions, intrinsic_matrices, extrinsic_matrices)
 
+  print("Camera0")
+  print(K0)
+  print(mRT0)
+  print("")
+  print("Camera1")
+  print(K1)
+  print(mRT1)
+  print("")
+
   # Lê o frame da câmera da esquerda e da direita (o primeiro frame de cada uma)
   frame_left = first_frame_debug["{}".format(left_cam_ref)]
   frame_right = first_frame_debug["{}".format(right_cam_ref)]
 
   # Calcula a matriz fundamental
   F = fundamental_matrix(K0, mRT0, K1, mRT1)
+  # F, mask = cv.findFundamentalMat(pts1,pts2,cv.FM_RANSAC,1,0.9999)
+  # F = cv2.sfm.fundamentalFromProjections(camera_left_matrix,camera_right_matrix)
 
   print("Fundamental Matrix")
   print(f"F = {F}")
@@ -201,7 +213,9 @@ def main():
   # Transforma o ponto médio do aruco na imagem da esquerda em uma linha epipolar a ser
   # plotada na imagem da direita
   linesRight = cv2.computeCorrespondEpilines(aruco_midpoint_in_left_frame, 1, F)
+  print(linesRight)
   linesRight = linesRight.reshape(-1,3)
+  print(linesRight)
 
   # Calcula a distância entre o ponto médio do aruco na imagem da direita e a linha epipolar calculada acima
   right_point_distance = shortest_distance(aruco_midpoint_in_right_frame[0][0][0], aruco_midpoint_in_right_frame[0][0][1], linesRight[0][0], linesRight[0][1], linesRight[0][2])
@@ -209,11 +223,13 @@ def main():
 
   # Desenha nos frames os pontos do aruco e a linha epipolar
   imagem_a, imagem_b = drawlines(frame_left, frame_right, linesRight, aruco_midpoint_in_left_frame, aruco_midpoint_in_right_frame)
-
+  
   # Exibe a imagem
   Hori = np.concatenate((imagem_b, imagem_a), axis=1)
   imS = cv2.resize(Hori, (1300, 640))
   cv2.imshow('HORIZONTAL', imS)
+  # cv2.imshow('HORIZONTAL', imagem_a)
+  # cv2.imshow('HORIZONTAL', imagem_b)
   cv2.waitKey(0)
   cv2.destroyAllWindows()
 

@@ -10,5 +10,6 @@ esemeniuc
 videos-para-avaliar
 *.sh
 *.mp4
-
-
+*.avi 
+*.png
+*.jpg
